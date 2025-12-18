@@ -1,0 +1,6 @@
+google-genai
+google-cloud-texttospeech
+fastapi
+uvicorn
+rich
+python-dotenv

@@ -1,0 +1,7 @@
+Prototype
+old
+__pycache__
+.env
+german_anki_creator.py
+usage_log.json
+.DS_Store

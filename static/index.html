@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Anki Creator</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#6366f1" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app-container">
+      <header>
+        <h1>Anki Creator</h1>
+      </header>
+
+      <main>
+        <div class="input-card">
+          <label for="word-input">Enter words (comma or new line)</label>
+          <textarea id="word-input" placeholder="e.g. 你好, 謝謝"></textarea>
+        </div>
+
+        <div id="log-area" class="log-area">
+          <!-- Logs will appear here -->
+        </div>
+      </main>
+
+      <div class="fab-container">
+        <button id="generate-btn" onclick="generateCards()">
+          <span id="btn-text">Generate Cards</span>
+          <div id="btn-spinner" class="spinner hidden"></div>
+        </button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
