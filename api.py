@@ -1,4 +1,6 @@
 import json
+import uvicorn
+
 import urllib.request
 import urllib.error
 import concurrent.futures
@@ -20,6 +22,8 @@ app = FastAPI(title="Anki Card Creator API")
 
 # --- Configuration ---
 ANKI_CONNECT_URL = os.getenv("ANKI_CONNECT_URL", "http://localhost:8765")
+API_HOST = os.getenv("API_HOST", "127.0.0.1")
+API_PORT = int(os.getenv("API_PORT", "8000"))
 
 # --- Models ---
 class WordList(BaseModel):
@@ -94,3 +98,7 @@ def create_chinese_cards(word_list: WordList):
 
 # Mount static files for PWA (Must be last to avoid shadowing API routes)
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+if __name__ == "__main__":
+    uvicorn.run("api:app", host=API_HOST, port=API_PORT, reload=True)
+

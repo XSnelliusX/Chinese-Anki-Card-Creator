@@ -87,6 +87,8 @@ For every word, the tool generates three distinct card types to test different a
     cp .env.example .env
     ```
     Edit `.env` and set your `GOOGLE_PROJECT_ID`.
+    You can also set the `API_HOST` and `API_PORT` if you want to change the default values.
+    For more information about the configuration, see the [Configuration Reference](#configuration-reference).
 
 ## Usage
 
@@ -95,10 +97,10 @@ For every word, the tool generates three distinct card types to test different a
 The easiest way to use the tool is through the web interface. Start the API server and navigate to the local URL.
 
 ```bash
-uvicorn api:app --reload
+python api.py
 ```
 
-Once running, open your browser to `http://127.0.0.1:8000`.
+Once running, open your browser to `http://<API_HOST>:<API_PORT>` (default: `http://127.0.0.1:8000`).
 
 ### 🖥️ CLI Mode
 
@@ -145,6 +147,8 @@ Customize the behavior via your `.env` file:
 | `GOOGLE_PROJECT_ID`   | **Required**. Your GCP Project ID.      | -                                  |
 | `GOOGLE_LOCATION`     | GCP Region for Vertex AI.               | `global`                           |
 | `ANKI_CONNECT_URL`    | URL for AnkiConnect.                    | `http://localhost:8765`            |
+| `API_HOST`            | Host for the API server.                | `127.0.0.1`                        |
+| `API_PORT`            | Port for the API server.                | `8000`                             |
 | `CHINESE_DECK_NAME`   | Name of the Anki deck to populate.      | `Chinese`                          |
 | `CHINESE_MODEL_NAME`  | Name of the Note Type to create/use.    | `Chinese Model`                    |
 | `TEXT_MODEL`          | Gemini model for text generation.       | `gemini-2.5-flash-preview-09-2025` |
