@@ -1,4 +1,4 @@
-# AI-Powered Chinese Anki Card Creator
+# AI-Powered Chinese (Traditional) Anki Card Creator
 
 > **Revolutionize your vocabulary acquisition with context-rich, AI-generated flashcards.**
 
