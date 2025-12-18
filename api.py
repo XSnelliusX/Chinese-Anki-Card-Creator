@@ -1,5 +1,5 @@
-import json
 import uvicorn
+from fastapi import FastAPI, HTTPException, Request, Response
 
 import urllib.request
 import urllib.error
@@ -19,9 +19,13 @@ from dotenv import load_dotenv
 
 # Import the creator scripts
 import chinese_anki_creator
+from usage_tracker import UsageTracker
 
 # Load environment variables
 load_dotenv()
+
+# Initialize global usage tracker
+tracker = UsageTracker()
 
 app = FastAPI(title="Anki Card Creator API")
 
@@ -72,8 +76,8 @@ def sync_anki():
 def process_words_parallel(words: List[str], processor_func):
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        # We pass None for progress and task_id as we are not using Rich here
-        future_to_word = {executor.submit(processor_func, word, None, None): word for word in words}
+        # We pass None for progress and task_id as we are not using Rich here, but we pass the tracker
+        future_to_word = {executor.submit(processor_func, word, None, None, tracker): word for word in words}
         for future in concurrent.futures.as_completed(future_to_word):
             word = future_to_word[future]
             try:
@@ -103,7 +107,7 @@ async def stream_chinese_cards(word_list: WordList):
                 chinese_anki_creator.create_model()
                 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                    futures = {executor.submit(chinese_anki_creator.process_word, word, ProgressProxy(q, word), None): word for word in word_list.words}
+                    futures = {executor.submit(chinese_anki_creator.process_word, word, ProgressProxy(q, word), None, tracker): word for word in word_list.words}
                     
                     for future in concurrent.futures.as_completed(futures):
                         word = futures[future]
@@ -165,6 +169,20 @@ def create_chinese_cards(word_list: WordList):
         "results": results,
         "anki_sync": "success" if sync_success else "failed"
     }
+
+@app.get("/usage")
+def get_usage():
+    """
+    Get the comprehensive usage summary.
+    """
+    try:
+        return tracker.get_summary()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 # Mount static files for PWA (Must be last to avoid shadowing API routes)
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

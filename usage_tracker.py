@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
+import fcntl
 
 # Try to import rich for better UI
 try:
@@ -29,8 +30,10 @@ PRICE_IMAGEN_PER_IMAGE = 0.039
 PRICE_TTS_CHIRP_1M_CHARS = 30.00
 
 LOG_FILE = "usage_log.json"
+LOCK_FILE = "usage_log.lock"
 
 import threading
+import time
 
 class UsageTracker:
     def __init__(self):
@@ -64,13 +67,82 @@ class UsageTracker:
         }
         
         with self.lock:
+            # We must load the latest from disk and save immediately with a lock
+            # to prevent multiple processes from overwriting each other.
+            max_retries = 10
+            retry_delay = 0.05
+            
+            for attempt in range(max_retries):
+                try:
+                    with open(LOCK_FILE, 'w') as lf:
+                        fcntl.flock(lf, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        try:
+                            # Now we have the lock, read, append, write
+                            data = []
+                            if os.path.exists(LOG_FILE):
+                                try:
+                                    with open(LOG_FILE, 'r') as f:
+                                        content = f.read()
+                                        if content:
+                                            data = json.loads(content)
+                                except (json.JSONDecodeError, FileNotFoundError):
+                                    data = []
+                            
+                            data.append(entry)
+                            
+                            with open(LOG_FILE, 'w') as f:
+                                json.dump(data, f, indent=2)
+                            
+                            self.all_usage = data # Update in-memory cache
+                            # Success!
+                            break
+                        finally:
+                            fcntl.flock(lf, fcntl.LOCK_UN)
+                except (OSError, IOError):
+                    # Lock busy, wait and retry
+                    if attempt == max_retries - 1:
+                        print(f"Failed to acquire lock after {max_retries} attempts.")
+                    else:
+                        time.sleep(retry_delay)
+                except Exception as e:
+                    print(f"Error logging usage: {e}")
+                    break
+            
             self.session_usage.append(entry)
-            self.all_usage.append(entry)
-            self._save_log()
 
-    def _save_log(self):
-        with open(LOG_FILE, 'w') as f:
-            json.dump(self.all_usage, f, indent=2)
+    def get_summary(self):
+        """Returns a summary of all-time usage for the UI."""
+        with self.lock:
+            self._load_log() # Get latest
+            
+            total_cost_flash = self.calculate_cost(self.all_usage, "flash")
+            words_processed = len(set(e['word'] for e in self.all_usage))
+            
+            # Aggregate counts
+            total_text_input = sum(e.get("text_input_tokens", 0) for e in self.all_usage)
+            total_text_output = sum(e.get("text_output_tokens", 0) for e in self.all_usage)
+            total_image_input = sum(e.get("image_input_tokens", 0) for e in self.all_usage)
+            total_audio_chars = sum(e.get("audio_characters", 0) for e in self.all_usage)
+            total_images = sum(e.get("images_generated", 0) for e in self.all_usage)
+
+            # Component costs
+            text_cost = sum(((e.get("text_input_tokens", 0) / 1_000_000) * PRICE_GEMINI_FLASH_INPUT_1M + 
+                            (e.get("text_output_tokens", 0) / 1_000_000) * PRICE_GEMINI_FLASH_OUTPUT_1M) for e in self.all_usage)
+            image_cost = sum(((e.get("image_input_tokens", 0) / 1_000_000) * PRICE_IMAGEN_INPUT_1M + 
+                             e.get("images_generated", 0) * PRICE_IMAGEN_PER_IMAGE) for e in self.all_usage)
+            audio_cost = sum((e.get("audio_characters", 0) / 1_000_000) * PRICE_TTS_CHIRP_1M_CHARS for e in self.all_usage)
+
+            return {
+                "total_cost": round(total_cost_flash, 4),
+                "words_processed": words_processed,
+                "avg_cost_per_word": round(total_cost_flash / words_processed, 4) if words_processed > 0 else 0,
+                "components": {
+                    "text": {"total": total_text_input + total_text_output, "cost": round(text_cost, 4)},
+                    "image": {"total": total_images, "cost": round(image_cost, 4)},
+                    "audio": {"total": total_audio_chars, "cost": round(audio_cost, 4)}
+                },
+                "last_update": datetime.now().isoformat()
+            }
 
     def calculate_cost(self, entries: List[Dict], model_type="flash") -> float:
         total_cost = 0.0

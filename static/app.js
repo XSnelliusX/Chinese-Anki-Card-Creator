@@ -156,3 +156,77 @@ function updateSubStep(item, step, isFailed) {
     el.classList.remove('active');
     el.classList.add(isFailed ? 'failed' : 'success');
 }
+
+// --- Stats Logic ---
+async function toggleStats() {
+    const existing = document.getElementById('stats-modal');
+    if (existing) {
+        existing.remove();
+        return;
+    }
+
+    try {
+        const response = await fetch('/usage');
+        const data = await response.json();
+        showStatsModal(data);
+    } catch (e) {
+        console.error("Failed to fetch stats:", e);
+    }
+}
+
+function showStatsModal(data) {
+    const modal = document.createElement('div');
+    modal.id = 'stats-modal';
+    modal.className = 'modal-overlay';
+    modal.onclick = (e) => { if(e.target === modal) toggleStats(); };
+
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Cost Overview</h2>
+                <button class="close-btn" onclick="toggleStats()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card stat-full-width">
+                    <div class="stat-label">Total Consumption</div>
+                    <div class="stat-cost">$${data.total_cost.toFixed(4)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Words</div>
+                    <div class="stat-value">${data.words_processed}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg / Word</div>
+                    <div class="stat-value">$${data.avg_cost_per_word.toFixed(4)}</div>
+                </div>
+            </div>
+
+            <div class="components-list">
+                <div class="component-item">
+                    <span class="comp-name">Text</span>
+                    <span class="comp-val">${data.components.text.total} tkn</span>
+                    <span class="comp-price">$${data.components.text.cost.toFixed(4)}</span>
+                </div>
+                <div class="component-item">
+                    <span class="comp-name">Image</span>
+                    <span class="comp-val">${data.components.image.total} img</span>
+                    <span class="comp-price">$${data.components.image.cost.toFixed(4)}</span>
+                </div>
+                <div class="component-item">
+                    <span class="comp-name">Audio</span>
+                    <span class="comp-val">${(data.components.audio.total/1000).toFixed(1)}k chars</span>
+                    <span class="comp-price">$${data.components.audio.cost.toFixed(4)}</span>
+                </div>
+            </div>
+            
+            <div style="margin-top: 24px; font-size: 11px; color: var(--text-light); text-align: center;">
+                Prices based on Google Cloud Vertex AI standard rates.
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
