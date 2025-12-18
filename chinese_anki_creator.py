@@ -276,23 +276,25 @@ def create_model():
     """
 
     back_template = """<div class="image-container">{{Image}}</div>
-    
-<div class="target-meaning">{{TargetWordMeaning}}</div>
 
 <div class="sentence-hanzi">{{SentenceHanziColored}}</div>
-
 <div class="sentence-pinyin">{{SentencePinyinColored}}</div>
-
 <div style="margin: 10px 0;">{{Audio}}</div>
-
 <div class="sentence-meaning">{{SentenceMeaning}}</div>
 
-<div class="analysis-box">
-    <b>Breakdown:</b><br>
-    {{TargetAnalysis}}
+<div class="target-spotlight">
+    <div class="target-label">FOCUS WORD</div>
+    
+    <div class="target-word">{{TargetWord}}</div>
+    <div class="target-def">{{TargetWordMeaning}}</div>
+
+    <div id="target-writing" class="writing-container"></div>
 </div>
 
-<div id="target-writing" class="writing-container"></div>
+<div class="analysis-box">
+    <b>Sentence Breakdown:</b><br>
+    {{TargetAnalysis}}
+</div>
 
 <script>
 // --- Script Helper: Load External Scripts ---
@@ -306,7 +308,7 @@ var injectScript = (src) => {
 };
 
 (async () => {
-    // 2. Hanzi Writer (Target Word Only)
+    // Hanzi Writer (Target Word Only)
     const targetWord = "{{TargetWord}}";
     if (targetWord && targetWord.trim() !== "") {
         await injectScript("https://cdn.jsdelivr.net/npm/hanzi-writer@3.6/dist/hanzi-writer.min.js");
@@ -326,7 +328,8 @@ var injectScript = (src) => {
                 HanziWriter.create(id, char, {
                     width: 100, height: 100, padding: 5,
                     showOutline: true,
-                    strokeColor: '#333',
+                    strokeColor: '#555', // Slightly lighter stroke for better contrast
+                    highlightColor: '#3399ff', // Blue highlight
                     drawingWidth: 20
                 }).animateCharacter();
             } catch(e) { console.log(e); }
