@@ -71,8 +71,8 @@ For every word, the tool generates three distinct card types to test different a
 1.  **Clone the Repository**:
 
     ```bash
-    git clone <repository-url>
-    cd <repository-directory>
+    git clone https://github.com/XSnelliusX/Chinese-Anki-Card-Creator.git
+    cd Chinese-Anki-Card-Creator
     ```
 
 2.  **Install Dependencies**:
