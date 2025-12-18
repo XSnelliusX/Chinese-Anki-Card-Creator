@@ -533,7 +533,15 @@ def generate_image_b64(card_data):
     if not card_data:
         return None, None
         
-    prompt = f"A photorealistic, bright, educational image representing this scene: {card_data['SentenceMeaning']}. No text in the image."
+    prompt = (
+        f"A vibrant, premium 3D stylized animation style illustration representing the scene: '{card_data['SentenceMeaning']}'. "
+        f"The primary goal is to clearly and unmistakably teach the concept of '{card_data['TargetWordMeaning']}'. "
+        f"Style: Clean, smooth 3D render (Pixar-like) with soft rounded shapes, expressive characters, and a cheerful atmosphere. "
+        f"Composition: High-contrast, iconic representation with a simple, uncluttered background to ensure the subject is the absolute focus. "
+        f"Lighting: Cinematic, warm, and bright studio lighting that highlights textures and depth. "
+        f"Constraint: ABSOLUTELY NO text, letters, symbols, or numbers in the image. "
+        f"The image should feel like a high-quality asset from a modern educational game."
+    )
     
     contents = [
         types.Content(
