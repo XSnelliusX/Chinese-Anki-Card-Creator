@@ -90,6 +90,9 @@ For every word, the tool generates three distinct card types to test different a
     You can also set the `API_HOST` and `API_PORT` if you want to change the default values.
     For more information about the configuration, see the [Configuration Reference](#configuration-reference).
 
+4.  **Remote Access (Optional)**:
+    If you plan to use this from your phone, follow the [Caddy Setup](#remote-access--https-caddy) to enable secure HTTPS access (Requires a domain name or Dynamic DNS service).
+
 ## Usage
 
 ### 🌐 Web Interface (Recommended)
@@ -165,6 +168,30 @@ This project includes several security measures:
 - **XSS Protection**: Sanitizes user input before rendering in the UI.
 
 To use the API Key in the web interface, click the **Settings (Gear)** icon in the header and enter your key. It will be saved in your browser's local storage.
+
+## Remote Access & HTTPS (Caddy)
+
+If you need to access this service from your phone or outside your home network, it is **highly recommended** to use a reverse proxy with HTTPS to protect your API Key.
+
+### 1. Install Caddy
+Caddy is a lightweight, secure web server that handles SSL automatically.
+- **Linux**: `sudo apt install caddy` (or see [caddy.community](https://caddyserver.com/docs/install))
+
+### 2. Configure Caddy
+A `Caddyfile.example` has been provided. 
+- Copy it to a new file named `Caddyfile`: `cp Caddyfile.example Caddyfile`
+- Open `Caddyfile` and replace `your-domain.com` with your actual domain or a dynamic DNS like DuckDNS.
+- Ensure your router is forwarding ports **80** and **443** to your server.
+
+### 3. Run it
+Simply run:
+```bash
+caddy run
+```
+Caddy will automatically fetch an SSL certificate and proxy all traffic to your Python backend on `localhost:8000`.
+
+> [!IMPORTANT]
+> When using Caddy, keep `API_HOST=127.0.0.1` in your `.env`. This ensures the backend only talks to Caddy and cannot be accessed directly via insecure HTTP.
 
 ---
 

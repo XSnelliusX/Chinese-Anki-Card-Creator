@@ -73,7 +73,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/static") or request.url.path == "/favicon.ico":
              return await call_next(request)
              
-        client_ip = request.client.host if request.client else "unknown"
+        # Use X-Forwarded-For if behind a proxy, else fallback to direct client IP
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "unknown"
+            
         now = time.time()
         
         # Clean old entries
@@ -276,5 +282,14 @@ async def favicon():
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
-    uvicorn.run("api:app", host=API_HOST, port=API_PORT, reload=True)
+    # When using a reverse proxy like Caddy, the app should bind to 127.0.0.1
+    # so that it is not accessible directly from the outside.
+    uvicorn.run(
+        "api:app", 
+        host=API_HOST, 
+        port=API_PORT, 
+        reload=False,   # Disable reload in production for stability
+        proxy_headers=True, 
+        forwarded_allow_ips="*" # Trust the reverse proxy headers
+    )
 

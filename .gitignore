@@ -4,4 +4,5 @@ __pycache__
 .env
 german_anki_creator.py
 usage_log*
+Caddyfile
 .DS_Store
