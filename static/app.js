@@ -168,7 +168,7 @@ function handleStreamEvent(data, wordElements) {
 
         if (!data.success) {
             const errDiv = document.createElement('div');
-            errDiv.style = "font-size:12px; color:var(--error); margin-top:5px;";
+            errDiv.className = 'error-text';
             errDiv.textContent = data.message;
             item.appendChild(errDiv);
         } else if (hasWarning) {
@@ -176,7 +176,7 @@ function handleStreamEvent(data, wordElements) {
             if (imageFailed) warnMsg += "Image failed. ";
             if (audioFailed) warnMsg += "Audio failed.";
             const warnDiv = document.createElement('div');
-            warnDiv.style = "font-size:12px; color:var(--warning); margin-top:5px;";
+            warnDiv.className = 'warning-text';
             warnDiv.textContent = warnMsg;
             item.appendChild(warnDiv);
         }
@@ -219,13 +219,13 @@ function showStatsModal(data) {
     const modal = document.createElement('div');
     modal.id = 'stats-modal';
     modal.className = 'modal-overlay';
-    modal.onclick = (e) => { if (e.target === modal) toggleStats(); };
+    modal.addEventListener('click', (e) => { if (e.target === modal) toggleStats(); });
 
     modal.innerHTML = `
         <div class="modal">
             <div class="modal-header">
                 <h2>Cost Overview</h2>
-                <button class="close-btn" onclick="toggleStats()">
+                <button class="close-btn" id="modal-close-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
@@ -270,6 +270,7 @@ function showStatsModal(data) {
     `;
 
     document.body.appendChild(modal);
+    document.getElementById('modal-close-btn').addEventListener('click', toggleStats);
 }
 
 function toggleSettings() {
@@ -277,4 +278,32 @@ function toggleSettings() {
     if (key !== null) {
         localStorage.setItem('anki_api_key', key);
     }
+}
+
+// Initialize listeners
+function init() {
+    console.log("Initializing AnkiGen application...");
+    const generateBtn = document.getElementById('generate-btn');
+    if (generateBtn) {
+        generateBtn.addEventListener('click', generateCards);
+        console.log("Generate listener attached.");
+    }
+
+    const statsBtn = document.getElementById('stats-btn');
+    if (statsBtn) {
+        statsBtn.addEventListener('click', toggleStats);
+        console.log("Stats listener attached.");
+    }
+
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', toggleSettings);
+        console.log("Settings listener attached.");
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
 }
