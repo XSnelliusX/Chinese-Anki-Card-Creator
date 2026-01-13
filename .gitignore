@@ -3,5 +3,5 @@ old
 __pycache__
 .env
 german_anki_creator.py
-usage_log.json
+usage_log*
 .DS_Store

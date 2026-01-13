@@ -149,12 +149,22 @@ Customize the behavior via your `.env` file:
 | `ANKI_CONNECT_URL`    | URL for AnkiConnect.                    | `http://localhost:8765`            |
 | `API_HOST`            | Host for the API server.                | `127.0.0.1`                        |
 | `API_PORT`            | Port for the API server.                | `8000`                             |
+| `API_KEY`             | Optional API Key for authentication.    | -                                  |
 | `CHINESE_DECK_NAME`   | Name of the Anki deck to populate.      | `Chinese`                          |
 | `CHINESE_MODEL_NAME`  | Name of the Note Type to create/use.    | `Chinese Model`                    |
 | `TEXT_MODEL`          | Gemini model for text generation.       | `gemini-2.5-flash-preview-09-2025` |
 | `IMAGE_MODEL`         | Gemini model for image generation.      | `gemini-2.5-flash-image`           |
 | `CHINESE_AUDIO_MODEL` | TTS Voice model.                        | `cmn-CN-Chirp3-HD-Achernar`        |
 | `MAX_RETRIES`         | Number of retries for failed API calls. | `3`                                |
+
+## Security
+
+This project includes several security measures:
+- **API Key Authentication**: If `API_KEY` is set in your `.env`, the frontend and API will require this key.
+- **Input Validation**: Prevents processing too many words or excessively long words.
+- **XSS Protection**: Sanitizes user input before rendering in the UI.
+
+To use the API Key in the web interface, click the **Settings (Gear)** icon in the header and enter your key. It will be saved in your browser's local storage.
 
 ---
 

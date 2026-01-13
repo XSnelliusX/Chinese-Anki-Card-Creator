@@ -56,9 +56,12 @@ class UsageTracker:
         """
         Log usage stats for a single word.
         """
+        # Truncate word to prevent log bloat
+        truncated_word = word[:100] if word else "unknown"
+        
         entry = {
             "timestamp": datetime.now().isoformat(),
-            "word": word,
+            "word": truncated_word,
             "text_input_tokens": text_input_tokens,
             "text_output_tokens": text_output_tokens,
             "image_input_tokens": image_input_tokens,

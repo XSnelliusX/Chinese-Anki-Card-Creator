@@ -411,12 +411,15 @@ def generate_card_data(target_word):
     Generates the sentence, pinyin, meaning, and word-by-word analysis.
     """
     
+    # Sanitize target_word for the prompt by escaping quotes
+    safe_target_word = target_word.replace('"', '\\"')
+    
     prompt = f"""
-    Create a Traditional Chinese learning card for the target word: "{target_word}".
+    Create a Traditional Chinese learning card for the target word: "{safe_target_word}".
     
     Return ONLY a raw JSON object (no markdown formatting) with this exact structure:
     {{
-        "TargetWord": "{target_word}",
+        "TargetWord": "{safe_target_word}",
         "TargetWordMeaning": "The English translation of the target word.",
         "SentenceHanzi": "A simple, natural sentence using the word.",
         "SentencePinyin": "The pinyin for the sentence with tone marks.",
@@ -634,7 +637,9 @@ def generate_audio_b64(card_data):
 
 def check_word_exists(word):
     """Check if the word already exists in the deck."""
-    query = f'deck:"{DECK_NAME}" "TargetWord:{word}"'
+    # Escape double quotes for Anki query
+    safe_word = word.replace('"', '\\"')
+    query = f'deck:"{DECK_NAME}" "TargetWord:{safe_word}"'
     notes = invoke('findNotes', query=query)
     return len(notes) > 0
 

@@ -15,41 +15,74 @@ async function generateCards() {
     btn.disabled = true;
     btnText.textContent = "Processing...";
     spinner.classList.remove('hidden');
-    
-    // Clear previous logs but we'll add placeholders immediately
-    logArea.innerHTML = "";
-    const wordElements = {};
 
-    words.forEach(word => {
-        const item = document.createElement('div');
-        item.className = 'log-item';
-        item.id = `log-word-${word}`;
-        item.innerHTML = `
-            <div class="log-header">
-                <span class="log-word">${word}</span>
-                <span class="log-status hidden"></span>
-            </div>
-            <div class="progress-text">
-                <div class="spinner spinner-small"></div>
-                <span class="msg dots">Initializing</span>
-            </div>
-            <div class="sub-steps">
-                <span class="sub-step" data-step="text">Text</span>
-                <span class="sub-step" data-step="image">Image</span>
-                <span class="sub-step" data-step="audio">Audio</span>
-            </div>
-        `;
-        logArea.prepend(item); // Newest at top
-        wordElements[word] = item;
-    });
-
+    // Get API Key if exists
+    const apiKey = localStorage.getItem('anki_api_key') || "";
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) {
+        headers['X-API-Key'] = apiKey;
+    }
     input.value = "";
 
     try {
         const response = await fetch('/chinese/stream', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ words: words })
+        });
+
+        if (response.status === 401) {
+            alert("Unauthorized: Please check your API Key in settings.");
+            return;
+        }
+
+        if (!response.ok) {
+            alert(`Error: ${response.statusText}`);
+            return;
+        }
+
+        // Clear previous logs and only add placeholders if authorized
+        logArea.innerHTML = "";
+        const wordElements = {};
+
+        words.forEach(word => {
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.id = `log-word-${word.replace(/[^a-zA-Z0-9]/g, '_')}`; // Use a safe ID
+
+            const header = document.createElement('div');
+            header.className = 'log-header';
+
+            const wordSpan = document.createElement('span');
+            wordSpan.className = 'log-word';
+            wordSpan.textContent = word;
+
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'log-status hidden';
+
+            header.appendChild(wordSpan);
+            header.appendChild(statusSpan);
+
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'progress-text';
+            progressDiv.innerHTML = '<div class="spinner spinner-small"></div><span class="msg dots">Initializing</span>';
+
+            const subStepsDiv = document.createElement('div');
+            subStepsDiv.className = 'sub-steps';
+            ['Text', 'Image', 'Audio'].forEach(step => {
+                const s = document.createElement('span');
+                s.className = 'sub-step';
+                s.dataset.step = step.toLowerCase();
+                s.textContent = step;
+                subStepsDiv.appendChild(s);
+            });
+
+            item.appendChild(header);
+            item.appendChild(progressDiv);
+            item.appendChild(subStepsDiv);
+
+            logArea.prepend(item); // Newest at top
+            wordElements[word] = item;
         });
 
         const reader = response.body.getReader();
@@ -89,15 +122,15 @@ function handleStreamEvent(data, wordElements) {
         if (!item) return;
         const msgSpan = item.querySelector('.msg');
         msgSpan.textContent = data.message;
-        
+
         // Mark sub-steps as active based on message content
         const steps = item.querySelectorAll('.sub-step');
         steps.forEach(s => s.classList.remove('active'));
-        
+
         if (data.message.includes('text')) item.querySelector('[data-step="text"]').classList.add('active');
         if (data.message.includes('image')) item.querySelector('[data-step="image"]').classList.add('active');
         if (data.message.includes('audio')) item.querySelector('[data-step="audio"]').classList.add('active');
-    } 
+    }
     else if (data.type === 'done') {
         const item = wordElements[data.word];
         if (!item) return;
@@ -106,12 +139,12 @@ function handleStreamEvent(data, wordElements) {
         const textFailed = data.text && data.text.startsWith('Failed');
         const imageFailed = data.image && data.image.startsWith('Failed');
         const audioFailed = data.audio && data.audio.startsWith('Failed');
-        
+
         const hasWarning = data.success && (imageFailed || audioFailed);
 
         const statusLabel = item.querySelector('.log-status');
         statusLabel.classList.remove('hidden');
-        
+
         if (data.success) {
             if (hasWarning) {
                 statusLabel.textContent = 'WARNING';
@@ -166,7 +199,15 @@ async function toggleStats() {
     }
 
     try {
-        const response = await fetch('/usage');
+        const apiKey = localStorage.getItem('anki_api_key') || "";
+        const headers = {};
+        if (apiKey) headers['X-API-Key'] = apiKey;
+
+        const response = await fetch('/usage', { headers: headers });
+        if (response.status === 401) {
+            alert("Unauthorized: Please check your API Key in settings.");
+            return;
+        }
         const data = await response.json();
         showStatsModal(data);
     } catch (e) {
@@ -178,7 +219,7 @@ function showStatsModal(data) {
     const modal = document.createElement('div');
     modal.id = 'stats-modal';
     modal.className = 'modal-overlay';
-    modal.onclick = (e) => { if(e.target === modal) toggleStats(); };
+    modal.onclick = (e) => { if (e.target === modal) toggleStats(); };
 
     modal.innerHTML = `
         <div class="modal">
@@ -217,7 +258,7 @@ function showStatsModal(data) {
                 </div>
                 <div class="component-item">
                     <span class="comp-name">Audio</span>
-                    <span class="comp-val">${(data.components.audio.total/1000).toFixed(1)}k chars</span>
+                    <span class="comp-val">${(data.components.audio.total / 1000).toFixed(1)}k chars</span>
                     <span class="comp-price">$${data.components.audio.cost.toFixed(4)}</span>
                 </div>
             </div>
@@ -229,4 +270,11 @@ function showStatsModal(data) {
     `;
 
     document.body.appendChild(modal);
+}
+
+function toggleSettings() {
+    const key = prompt("Enter API Key (leave blank if not used):", localStorage.getItem('anki_api_key') || "");
+    if (key !== null) {
+        localStorage.setItem('anki_api_key', key);
+    }
 }

@@ -14,6 +14,10 @@ import asyncio
 import queue
 import threading
 import re
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+import time
+from collections import defaultdict
 
 import os
 from dotenv import load_dotenv
@@ -28,12 +32,75 @@ load_dotenv()
 # Initialize global usage tracker
 tracker = UsageTracker()
 
-app = FastAPI(title="Anki Card Creator API")
-
 # --- Configuration ---
 ANKI_CONNECT_URL = os.getenv("ANKI_CONNECT_URL", "http://localhost:8765")
 API_HOST = os.getenv("API_HOST", "127.0.0.1")
 API_PORT = int(os.getenv("API_PORT", "8000"))
+API_KEY = os.getenv("API_KEY") # Optional: Set in .env to enable authentication
+
+# --- Constants ---
+MAX_WORDS_PER_REQUEST = 50
+MAX_WORD_LENGTH = 100
+
+# --- Security Global State ---
+# Very simple in-memory rate limiting: {ip: [timestamps]}
+rate_limit_store = defaultdict(list)
+RATE_LIMIT_WINDOW = 60 # 1 minute
+RATE_LIMIT_MAX_REQUESTS = 30 # Limit to 30 requests per minute per IP
+
+# --- Security Middlewares ---
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Adjusted CSP to allow Google Fonts and the Hanzi Writer from CDN
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self';"
+        )
+        return response
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path.startswith("/static") or request.url.path == "/favicon.ico":
+             return await call_next(request)
+             
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        
+        # Clean old entries
+        rate_limit_store[client_ip] = [t for t in rate_limit_store[client_ip] if now - t < RATE_LIMIT_WINDOW]
+        
+        if len(rate_limit_store[client_ip]) >= RATE_LIMIT_MAX_REQUESTS:
+            return Response(content="Too Many Requests", status_code=429)
+            
+        rate_limit_store[client_ip].append(now)
+        return await call_next(request)
+
+class BotBlockerMiddleware(BaseHTTPMiddleware):
+    BLOCKED_PATHS = {".env", ".git", ".php", "wp-admin", "boaform", "powershell", "config"}
+    
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path.lower()
+        if any(bp in path for bp in self.BLOCKED_PATHS):
+             return Response(content="Not Found", status_code=404)
+        return await call_next(request)
+
+app = FastAPI(title="Anki Card Creator API")
+
+# Add Middlewares in order
+app.add_middleware(BotBlockerMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # --- Helpers ---
 class ProgressProxy:
@@ -96,9 +163,26 @@ def process_words_parallel(words: List[str], processor_func):
 class WordList(BaseModel):
     words: List[str]
 
+def check_auth(request: Request):
+    if API_KEY:
+        auth_header = request.headers.get("X-API-Key")
+        if auth_header != API_KEY:
+            raise HTTPException(status_code=401, detail="Invalid or missing API Key")
+
+def validate_word_list(words: List[str]):
+    if not words:
+        raise HTTPException(status_code=400, detail="Word list cannot be empty")
+    if len(words) > MAX_WORDS_PER_REQUEST:
+        raise HTTPException(status_code=400, detail=f"Too many words. Maximum is {MAX_WORDS_PER_REQUEST}")
+    for word in words:
+        if len(word) > MAX_WORD_LENGTH:
+            raise HTTPException(status_code=400, detail=f"Word too long: {word[:20]}...")
+
 # --- Endpoints ---
 @app.post("/chinese/stream")
-async def stream_chinese_cards(word_list: WordList):
+async def stream_chinese_cards(word_list: WordList, request: Request):
+    check_auth(request)
+    validate_word_list(word_list.words)
     def event_generator():
         q = queue.Queue()
         
@@ -146,7 +230,9 @@ async def stream_chinese_cards(word_list: WordList):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/chinese")
-def create_chinese_cards(word_list: WordList):
+def create_chinese_cards(word_list: WordList, request: Request):
+    check_auth(request)
+    validate_word_list(word_list.words)
     """
     Generate Chinese Anki cards for the provided list of words.
     """
@@ -172,7 +258,8 @@ def create_chinese_cards(word_list: WordList):
     }
 
 @app.get("/usage")
-def get_usage():
+def get_usage(request: Request):
+    check_auth(request)
     """
     Get the comprehensive usage summary.
     """
